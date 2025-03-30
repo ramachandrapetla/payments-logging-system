@@ -2,6 +2,7 @@ const pool = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 const { sendWebhookNotification } = require('../utils/webhookHelper');
 const { createTransaction, updateTransactionStatus, getTransaction } = require('../models/transaction');
+const { getMerchantByApiKey } = require('../models/merchant');
 
 const initiatePayment = async (req, res) => {
     const { amount, currency, orderId } = req.body;
@@ -12,16 +13,13 @@ const initiatePayment = async (req, res) => {
     }
 
     try {
-        const merchantRes = await pool.query(
-            'SELECT id FROM merchants WHERE api_key = $1',
-            [apiKey]
-        );
+        const merchant = getMerchantByApiKey(apiKey);
 
-        if (merchantRes.rowCount === 0) {
+        if (!merchant) {
             return res.status(403).json({ message: 'Invalid API key' });
         }
 
-        const merchantId = merchantRes.rows[0].id;
+        const merchantId = merchant.id;
         const transactionId = uuidv4();
         const status = 'initiated';
 
@@ -55,15 +53,11 @@ const confirmPayment = async (req, res) => {
     }
 
     try {
-        const merchantRes = await pool.query(
-            'SELECT id, secret, webhook_url FROM merchants WHERE api_key = $1',
-            [apiKey]
-        );
-        if (merchantRes.rowCount === 0) {
+        const merchant = getMerchantByApiKey(apiKey);
+
+        if (!merchant) {
             return res.status(403).json({ message: 'Invalid API key' });
         }
-
-        const merchant = merchantRes.rows[0];
 
         const tx = await updateTransactionStatus(transactionId, merchant.id, 'success');
 
@@ -100,11 +94,9 @@ const getPayment = async (req, res) => {
     const apiKey = req.headers['x-api-key'];
     console.log("apiKey: ", apiKey);
     try {
-        const merchantRes = await pool.query(
-            'SELECT id FROM merchants WHERE api_key = $1',
-            [apiKey]
-        );
-        const merchantId = merchantRes.rows[0].id;
+        const merchant = getMerchantByApiKey(apiKey);
+
+        const merchantId = merchant.id;
 
         const tx = await getTransaction(transactionId, merchantId);
 
