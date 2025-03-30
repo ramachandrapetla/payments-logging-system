@@ -1,8 +1,8 @@
-const pool = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 const { sendWebhookNotification } = require('../utils/webhookHelper');
 const { createTransaction, updateTransactionStatus, getTransaction } = require('../models/transaction');
 const { getMerchantByApiKey } = require('../models/merchant');
+const logger = require('../utils/logger')
 
 const initiatePayment = async (req, res) => {
     const { amount, currency, orderId } = req.body;
@@ -13,7 +13,7 @@ const initiatePayment = async (req, res) => {
     }
 
     try {
-        const merchant = getMerchantByApiKey(apiKey);
+        const merchant = await getMerchantByApiKey(apiKey);
 
         if (!merchant) {
             return res.status(403).json({ message: 'Invalid API key' });
@@ -53,7 +53,7 @@ const confirmPayment = async (req, res) => {
     }
 
     try {
-        const merchant = getMerchantByApiKey(apiKey);
+        const merchant = await getMerchantByApiKey(apiKey);
 
         if (!merchant) {
             return res.status(403).json({ message: 'Invalid API key' });
@@ -92,9 +92,9 @@ const confirmPayment = async (req, res) => {
 const getPayment = async (req, res) => {
     const { id: transactionId } = req.params;
     const apiKey = req.headers['x-api-key'];
-    console.log("apiKey: ", apiKey);
+
     try {
-        const merchant = getMerchantByApiKey(apiKey);
+        const merchant = await getMerchantByApiKey(apiKey);
 
         const merchantId = merchant.id;
 
@@ -107,7 +107,7 @@ const getPayment = async (req, res) => {
         res.status(200).json(tx);
 
     } catch (err) {
-        console.error('getPayment error:', err);
+        logger.error(`getPayment error:, ${err}`);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
