@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const crypto = require('crypto');
+const { getMerchantByApiKey } = require('../models/merchant');
 
 // Attach merchant info to `req.merchant`
 const verifyMerchant = async (req, res, next) => {
@@ -14,12 +15,14 @@ const verifyMerchant = async (req, res, next) => {
             'SELECT id, secret, is_superuser FROM merchants WHERE api_key = $1',
             [apiKey]
         );
+        const merchant = await getMerchantByApiKey(apiKey);
 
-        if (result.rowCount === 0) {
+        if (!merchant) {
             return res.status(403).json({ message: 'Invalid API key' });
         }
 
         req.merchant = result.rows[0]; // Make merchant info available to downstream routes
+        
         next();
     } catch (err) {
         console.error('verifyMerchant error:', err);
